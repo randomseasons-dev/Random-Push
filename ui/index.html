@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Random Push</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="logo">⇅</span> Random Push <span id="meName" class="muted"></span></div>
+    <div class="hbtns">
+      <button id="btnHistory" class="ghost" title="History">History</button>
+      <button id="btnSettings" class="ghost" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <button id="btnReceived" class="received hidden">📥 Received <b id="recvCount">0</b> new — open</button>
+
+  <main>
+    <section class="card">
+      <div id="dz" class="dropzone">
+        <div class="dz-big">Drop files or folders here</div>
+        <div class="muted">or <a href="#" id="browse">browse files</a> · <a href="#" id="browseDir">pick a folder</a></div>
+      </div>
+      <ul id="staged" class="staged"></ul>
+      <textarea id="text" rows="4" placeholder="…or type / paste text to push (sent together with the files)"></textarea>
+    </section>
+
+    <section class="card">
+      <div class="row between">
+        <h3>Send to</h3>
+        <div class="row gap">
+          <button id="btnScan" class="small">Scan network</button>
+          <button id="btnAddIp" class="small">Add by IP</button>
+        </div>
+      </div>
+      <div id="devices" class="devices"></div>
+      <div id="foreign"></div>
+    </section>
+
+    <section class="pushbar">
+      <div id="progWrap" class="prog hidden"><div id="progBar"></div></div>
+      <div id="progLabel" class="muted small-text"></div>
+      <button id="btnPush" class="primary">Push</button>
+    </section>
+
+    <section id="lastCard" class="card hidden">
+      <div class="row between"><h3 id="lastTitle">Last push</h3><a href="#" id="lastAll">All history</a></div>
+      <div id="lastList" class="last"></div>
+    </section>
+  </main>
+
+  <footer id="footer" class="muted"></footer>
+
+  <!-- history / received -->
+  <div id="histPanel" class="panel hidden">
+    <div class="panel-box">
+      <div class="row between">
+        <div class="tabs"><button data-tab="in" class="tab on">Received</button><button data-tab="out" class="tab">Sent</button></div>
+        <div class="row gap">
+          <button id="btnOpenFolder" class="small">Open folder</button>
+          <button id="btnClear" class="small ghost">Clear list</button>
+          <button class="small close" data-close="histPanel">✕</button>
+        </div>
+      </div>
+      <div id="histList" class="hist"></div>
+    </div>
+  </div>
+
+  <!-- settings -->
+  <div id="setPanel" class="panel hidden">
+    <div class="panel-box">
+      <div class="row between"><h3>Settings</h3><button class="small close" data-close="setPanel">✕</button></div>
+      <label>This device's name<input id="sName" /></label>
+      <label>Sync key <span class="muted">(same key on every device you want to push between)</span>
+        <div class="row gap"><input id="sKey" class="mono" /><button id="btnCopyKey" class="small">Copy</button><button id="btnNewKey" class="small">New</button></div>
+      </label>
+      <label class="check"><input type="checkbox" id="sAuto" /> Start with Windows (minimized to tray)</label>
+      <label class="check"><input type="checkbox" id="sCopy" /> Copy received text to the clipboard automatically</label>
+      <label class="check"><input type="checkbox" id="sPopup" /> Show a popup in the corner of the screen when something arrives</label>
+      <label class="check"><input type="checkbox" id="sSound" /> Play a ping sound when something arrives</label>
+      <label>Save received files to
+        <div class="row gap"><input id="sDir" /><button id="btnDir" class="small">…</button></div>
+      </label>
+      <fieldset>
+        <legend>Internet relay (when the devices can't reach each other directly)</legend>
+        <label class="check"><input type="checkbox" id="sRelay" /> Use the relay (end-to-end encrypted with the sync key)</label>
+        <label>Relay server (ntfy) <input id="sServer" placeholder="https://ntfy.sh" /></label>
+        <label>Max file size via relay (MB) <input id="sMax" type="number" min="1" max="2048" /></label>
+      </fieldset>
+      <div id="netInfo" class="muted small-text"></div>
+      <div class="row end"><button id="btnSave" class="primary">Save</button></div>
+    </div>
+  </div>
+
+  <!-- pairing request -->
+  <div id="pairPanel" class="panel hidden">
+    <div class="panel-box narrow">
+      <h3>Pairing request</h3>
+      <p id="pairText"></p>
+      <div class="row end gap"><button id="btnPairNo">Decline</button><button id="btnPairYes" class="primary">Accept</button></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>

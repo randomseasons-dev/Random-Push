@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Random Push</title>
+  <style>
+    :root { --bg: #1d2129; --text: #e6e9f0; --muted: #9aa3b5; --accent: #4d86ff; --ok: #1f9d55; }
+    @media (prefers-color-scheme: light) { :root { --bg: #ffffff; --text: #1c2230; --muted: #6b7486; --accent: #2f6fed; } }
+    html, body { margin: 0; height: 100%; overflow: hidden; }
+    body {
+      background: var(--bg); color: var(--text); font: 13px/1.35 "Segoe UI", system-ui, sans-serif;
+      border-left: 4px solid var(--ok); box-sizing: border-box; padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 6px; user-select: none; cursor: default;
+    }
+    .top { display: flex; align-items: center; gap: 8px; }
+    .logo { color: var(--accent); font-size: 16px; }
+    .title { flex: 1; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .x { background: none; border: none; color: var(--muted); font-size: 15px; cursor: pointer; padding: 0 4px; }
+    .body { color: var(--muted); flex: 1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; word-break: break-word; }
+    .acts { display: flex; gap: 6px; justify-content: flex-end; }
+    button.b { border: 1px solid var(--accent); background: transparent; color: var(--text); border-radius: 6px; padding: 3px 12px; cursor: pointer; font: inherit; }
+    button.b.primary { background: var(--accent); color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="top"><span class="logo">⇅</span><span class="title" id="title">Random Push</span><button class="x" id="x" title="Dismiss">✕</button></div>
+  <div class="body" id="body"></div>
+  <div class="acts"><button class="b" id="copy" hidden>Copy</button><button class="b primary" id="open">Open</button></div>
+  <script>
+    const invoke = window.__TAURI__.core.invoke;
+    let timer, data = {};
+    const arm = () => { clearTimeout(timer); timer = setTimeout(() => invoke('popup_close'), 9000); };
+    document.body.addEventListener('mouseenter', () => clearTimeout(timer));
+    document.body.addEventListener('mouseleave', arm);
+    document.getElementById('x').onclick = () => invoke('popup_close');
+    document.getElementById('open').onclick = () => invoke('popup_open');
+    document.getElementById('copy').onclick = async () => {
+      await invoke('copy_text', { text: data.text });
+      document.getElementById('copy').textContent = 'Copied ✓';
+    };
+    invoke('popup_data').then((d) => {
+      data = d || {};
+      document.getElementById('title').textContent = data.title || 'Random Push';
+      document.getElementById('body').textContent = data.body || '';
+      document.getElementById('copy').hidden = !data.text;
+      document.getElementById('open').textContent = data.kind === 'pair' ? 'Review' : 'Open';
+      arm();
+    });
+  </script>
+</body>
+</html>
