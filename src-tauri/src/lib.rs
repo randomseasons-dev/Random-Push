@@ -59,6 +59,32 @@ fn dir_size(p: &std::path::Path) -> u64 {
 }
 
 #[tauri::command]
+fn save_paste(app: AppHandle, data: String, name: String) -> Result<String, String> {
+    use base64::Engine as _;
+    let b64 = data.split_once(',').map(|(_, b)| b).unwrap_or(&data);
+    let bytes = base64::engine::general_purpose::STANDARD.decode(b64.trim()).map_err(|e| e.to_string())?;
+    let dir = app.path().app_cache_dir().unwrap_or_else(|_| std::env::temp_dir().join("RandomPush")).join("pasted");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    // keep the folder small: drop pasted images older than 2 days
+    if let Ok(rd) = std::fs::read_dir(&dir) {
+        for e in rd.flatten() {
+            if let Ok(m) = e.metadata() {
+                if m.modified().ok().and_then(|t| t.elapsed().ok()).map_or(false, |a| a.as_secs() > 2 * 86400) {
+                    let _ = std::fs::remove_file(e.path());
+                }
+            }
+        }
+    }
+    let base: String = name.chars().filter(|c| c.is_alphanumeric() || " -_".contains(*c)).collect();
+    let base = if base.trim().is_empty() { "Pasted image".to_string() } else { base.trim().to_string() };
+    let mut p = dir.join(format!("{base}.jpg"));
+    let mut n = 2;
+    while p.exists() { p = dir.join(format!("{base} ({n}).jpg")); n += 1; }
+    std::fs::write(&p, bytes).map_err(|e| e.to_string())?;
+    Ok(p.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 async fn pick_files(app: AppHandle) -> Vec<String> {
     app.dialog()
         .file()
@@ -211,12 +237,16 @@ pub fn run() {
                 core.save_settings();
             }
 
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.set_title(&format!("Random Push {}", app.package_info().version));
+            }
+
             let open = MenuItem::with_id(app, "open", "Open Random Push", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &quit])?;
             TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().unwrap().clone())
-                .tooltip("Random Push")
+                .tooltip(format!("Random Push {}", app.package_info().version))
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, e| match e.id.as_ref() {
@@ -247,7 +277,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_state, file_info, pick_files, pick_folder, push, mark_seen, open_item, reveal_item, open_folder,
             copy_text, delete_item, clear_history, save_settings, new_key, scan, add_ip, pair, answer_pair, forget_peer,
-            popup_data, popup_open, popup_close
+            popup_data, popup_open, popup_close, save_paste
         ])
         .run(tauri::generate_context!())
         .expect("error while running Random Push");

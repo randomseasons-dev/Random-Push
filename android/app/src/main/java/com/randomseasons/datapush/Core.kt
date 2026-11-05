@@ -416,6 +416,7 @@ object Core {
     fun nameAndSize(u: Uri): Pair<String, Long> {
         var name = u.lastPathSegment ?: "file"
         var size = -1L
+        if (u.scheme == "file") { u.path?.let { val f = java.io.File(it); if (f.exists()) size = f.length() }; return name to size }
         try {
             app.contentResolver.query(u, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { c ->
                 if (c.moveToFirst()) {

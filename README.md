@@ -43,7 +43,7 @@ npm install
 CARGO_BUILD_JOBS=1 npx tauri build
 ```
 
-Output: `src-tauri/target/release/bundle/nsis/Random Push_1.1.0_x64-setup.exe`. The installer asks for admin rights so it can add the Windows Firewall rule "Random Push" (inbound, for this exe only). The uninstaller removes that rule.
+Output: `src-tauri/target/release/bundle/nsis/Random Push_1.2.0_x64-setup.exe`. The installer asks for admin rights so it can add the Windows Firewall rule "Random Push" (inbound, for this exe only). The uninstaller removes that rule.
 
 Android (toolchain in `D:\AndroidDev`):
 

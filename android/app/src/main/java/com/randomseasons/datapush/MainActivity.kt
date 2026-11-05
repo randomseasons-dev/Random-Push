@@ -119,7 +119,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         PushService.start(this)
         Core.init(this)
-        title = "Random Push"
+        title = "Random Push " + appVersion()
         target = getPreferences(MODE_PRIVATE).getString("target", "") ?: ""
         buildUi()
         handleIntent(intent)
@@ -241,12 +241,30 @@ class MainActivity : Activity() {
                 }
             }
         })
+        drop.addView(button("📋 Paste picture") { pasteClipboardPicture() })
         stagedBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         drop.addView(stagedBox)
         textEdit = EditText(this).apply {
-            hint = "…or type / paste text to push (sent together with the files)"
+            hint = "…or type / paste text to push (sent together with the files). Pasting a picture attaches it as a JPG"
             minLines = 3; gravity = Gravity.TOP
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+        }
+        // Ctrl+V / keyboard / long-press paste of a picture into the text box -> JPG attachment (Android 12+)
+        if (Build.VERSION.SDK_INT >= 31) {
+            textEdit.setOnReceiveContentListener(arrayOf("image/*"), object : android.view.OnReceiveContentListener {
+                override fun onReceiveContent(view: View, payload: android.view.ContentInfo): android.view.ContentInfo? {
+                    val clip = payload.clip
+                    val uris = (0 until clip.itemCount).mapNotNull { i -> clip.getItemAt(i).uri }
+                    if (uris.isEmpty()) return payload // plain text: normal paste
+                    attachPictures(uris)
+                    // let any text items in the same clip paste normally
+                    val texts = (0 until clip.itemCount).map { i -> clip.getItemAt(i) }.filter { it.uri == null && it.text != null }
+                    if (texts.isEmpty()) return null
+                    val rest = android.content.ClipData(clip.description, texts[0])
+                    for (t in texts.drop(1)) rest.addItem(t)
+                    return android.view.ContentInfo.Builder(payload).setClip(rest).build()
+                }
+            })
         }
         drop.addView(textEdit)
         col.addView(drop)
@@ -281,6 +299,50 @@ class MainActivity : Activity() {
 
         setContentView(ScrollView(this).apply { isFillViewport = true; addView(col) })
         renderStaged()
+    }
+
+    private fun appVersion(): String = try {
+        packageManager.getPackageInfo(packageName, 0).versionName ?: ""
+    } catch (e: Exception) { "" }
+
+    /** "Paste picture" button: the picture (or copied screenshot) on the clipboard becomes a JPG attachment. */
+    private fun pasteClipboardPicture() {
+        val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val clip = cm.primaryClip
+        val uris = if (clip == null) emptyList() else (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }.filter { u ->
+            (contentResolver.getType(u) ?: Core.mimeOf(u.lastPathSegment ?: "")).startsWith("image/")
+        }
+        if (uris.isEmpty()) return toast("No picture on the clipboard")
+        attachPictures(uris)
+    }
+
+    /** Converts pictures to JPG files in the app cache and stages them. */
+    private fun attachPictures(uris: List<Uri>) {
+        thread {
+            val out = ArrayList<Uri>()
+            val dir = java.io.File(cacheDir, "pasted").apply { mkdirs() }
+            // keep the folder small: drop pasted pictures older than 2 days
+            dir.listFiles()?.forEach { if (System.currentTimeMillis() - it.lastModified() > 2 * 86400_000L) it.delete() }
+            val stamp = java.text.SimpleDateFormat("yyyy-MM-dd HH-mm-ss", java.util.Locale.US).format(java.util.Date())
+            for (u in uris) {
+                try {
+                    val bmp = contentResolver.openInputStream(u)?.use { android.graphics.BitmapFactory.decodeStream(it) } ?: continue
+                    val flat = android.graphics.Bitmap.createBitmap(bmp.width, bmp.height, android.graphics.Bitmap.Config.ARGB_8888)
+                    android.graphics.Canvas(flat).apply { drawColor(Color.WHITE); drawBitmap(bmp, 0f, 0f, null) } // JPG has no transparency
+                    var f = java.io.File(dir, "Screenshot $stamp.jpg")
+                    var n = 2
+                    while (f.exists()) { f = java.io.File(dir, "Screenshot $stamp ($n).jpg"); n++ }
+                    f.outputStream().use { flat.compress(android.graphics.Bitmap.CompressFormat.JPEG, 92, it) }
+                    bmp.recycle(); flat.recycle()
+                    out.add(Uri.fromFile(f))
+                } catch (e: Throwable) {
+                }
+            }
+            runOnUiThread {
+                if (out.isEmpty()) toast("Could not read the picture")
+                else { addUris(out); toast(if (out.size > 1) "${out.size} pictures attached" else "Picture attached as JPG") }
+            }
+        }
     }
 
     private fun addUris(list: List<Uri>) {

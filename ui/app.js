@@ -46,6 +46,7 @@ setInterval(refresh, 4000);
 
 function render() {
   $('meName').textContent = '· ' + S.me.name;
+  if (!$('appVer').textContent && T.app) T.app.getVersion().then((v) => { $('appVer').textContent = 'v' + v; }).catch(() => {});
   const n = S.unseen;
   $('btnReceived').classList.toggle('hidden', n === 0);
   $('recvCount').textContent = n;
@@ -167,6 +168,36 @@ $('staged').addEventListener('click', (e) => {
 });
 $('browse').onclick = async (e) => { e.preventDefault(); addPaths(await invoke('pick_files')); };
 $('browseDir').onclick = async (e) => { e.preventDefault(); const d = await invoke('pick_folder'); if (d) addPaths([d]); };
+
+// ---------- Ctrl+V a picture (screenshot / Snipping Tool / copied image) -> JPG attachment ----------
+async function imageToJpeg(blob) {
+  const bmp = await createImageBitmap(blob);
+  const c = document.createElement('canvas');
+  c.width = bmp.width; c.height = bmp.height;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); // JPG has no transparency
+  g.drawImage(bmp, 0, 0);
+  bmp.close && bmp.close();
+  return c.toDataURL('image/jpeg', 0.92);
+}
+function pasteName() {
+  const d = new Date(), p = (n) => String(n).padStart(2, '0');
+  return `Screenshot ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`;
+}
+document.addEventListener('paste', async (e) => {
+  const items = [...((e.clipboardData && e.clipboardData.items) || [])];
+  const imgs = items.filter((it) => it.kind === 'file' && it.type.startsWith('image/')).map((it) => it.getAsFile()).filter(Boolean);
+  if (!imgs.length) return; // plain text: normal paste
+  e.preventDefault();
+  try {
+    const paths = [];
+    for (const f of imgs) paths.push(await invoke('save_paste', { data: await imageToJpeg(f), name: pasteName() }));
+    await addPaths(paths);
+    toast(imgs.length > 1 ? `${imgs.length} pictures attached` : 'Picture attached as JPG');
+  } catch (err) {
+    toast('Could not paste the picture: ' + err);
+  }
+});
 
 T.webview.getCurrentWebview().onDragDropEvent((e) => {
   const p = e.payload;
