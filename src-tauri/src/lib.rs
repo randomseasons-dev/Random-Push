@@ -61,6 +61,11 @@ fn dir_size(p: &std::path::Path) -> u64 {
 }
 
 #[tauri::command]
+fn set_target(core: CoreS, id: String) {
+    core.set_last_target(&id);
+}
+
+#[tauri::command]
 fn save_paste(app: AppHandle, data: String, name: String) -> Result<String, String> {
     use base64::Engine as _;
     let b64 = data.split_once(',').map(|(_, b)| b).unwrap_or(&data);
@@ -286,7 +291,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_state, file_info, pick_files, pick_folder, push, mark_seen, open_item, reveal_item, open_folder,
             copy_text, delete_item, clear_history, save_settings, new_key, scan, add_ip, pair, answer_pair, forget_peer,
-            popup_data, popup_open, popup_close, save_paste
+            popup_data, popup_open, popup_close, save_paste, set_target
         ])
         .run(tauri::generate_context!())
         .expect("error while running Random Push");

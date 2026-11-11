@@ -1,6 +1,6 @@
 [package]
 name = "random-push"
-version = "1.3.0"
+version = "1.4.0"
 description = "Random Push"
 authors = ["Dong Nguyen"]
 edition = "2021"

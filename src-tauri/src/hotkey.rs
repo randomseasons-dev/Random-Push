@@ -166,10 +166,9 @@ fn stamp() -> String {
 
 fn quick_push(core: &Arc<Core>) {
     let fail = |msg: &str| core.alert("info", "Quick push (Ctrl+Shift+P)", msg, None);
-    let target = core.settings.lock().unwrap().last_target.clone();
-    if target.is_empty() {
-        return fail("Push something once from the app first. Ctrl+Shift+P then sends to that device.");
-    }
+    let Some(target) = core.quick_target() else {
+        return fail("No device yet. Pair a device in Random Push first.");
+    };
     let name = core.peers.lock().unwrap().get(&target).map(|p| p.name.clone());
     let Some(name) = name else {
         return fail("The last device is no longer in your list. Push once from the app to pick a new one.");

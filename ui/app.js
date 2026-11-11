@@ -46,7 +46,7 @@ setInterval(refresh, 4000);
 
 function render() {
   $('meName').textContent = '· ' + S.me.name;
-  { const lt = S.peers.find((p) => p.id === S.settings.last_target);
+  { const lt = S.peers.find((p) => p.id === S.settings.last_target) || S.peers.find((p) => p.id === target);
     $('quickHint').textContent = lt ? `Tip: click the taskbar or desktop and press Ctrl+Shift+P to push your clipboard (text or picture) to ${lt.name}` : 'Tip: after your first push, Ctrl+Shift+P on the taskbar or desktop pushes your clipboard to that device'; }
   if (!$('appVer').textContent && T.app) T.app.getVersion().then((v) => { $('appVer').textContent = 'v' + v; }).catch(() => {});
   const n = S.unseen;
@@ -101,7 +101,7 @@ $('devices').addEventListener('click', async (e) => {
     return;
   }
   const d = e.target.closest('.dev');
-  if (d) { target = d.dataset.id; localStorage.setItem('target', target); renderDevices(); }
+  if (d) { target = d.dataset.id; localStorage.setItem('target', target); invoke('set_target', { id: target }); renderDevices(); }
 });
 $('foreign').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-pair]');

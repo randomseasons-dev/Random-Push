@@ -198,6 +198,11 @@ object Lan {
                 if (k.token.isEmpty() || hd("x-dp-token") != k.token) {
                     return respond(s, 401, JSONObject().put("ok", false).put("error", "sync key mismatch"))
                 }
+                // a push meant for another device (it had this IP before): refuse, the sender tries elsewhere
+                val to = hd("x-dp-to")
+                if (to.isNotEmpty() && to != Core.deviceId) {
+                    return respond(s, 409, JSONObject().put("ok", false).put("error", "wrong device"))
+                }
                 val fromId = hd("x-dp-from")
                 val fromName = dec(hd("x-dp-name"))
                 val port = hd("x-dp-port").toIntOrNull() ?: Core.TCP_PORT
@@ -239,6 +244,7 @@ object Lan {
             c.setFixedLengthStreamingMode(it.size)
             c.setRequestProperty("X-DP-Token", Core.keys().token)
             c.setRequestProperty("X-DP-From", Core.deviceId)
+            c.setRequestProperty("X-DP-To", meta.to)
             c.setRequestProperty("X-DP-Name", enc(Core.deviceName))
             c.setRequestProperty("X-DP-Plat", Core.PLATFORM)
             c.setRequestProperty("X-DP-Port", Core.httpPort.toString())
@@ -264,6 +270,7 @@ object Lan {
             val code = c.responseCode
             return when (code) {
                 200 -> Result.Ok
+                409 -> Result.Unreachable("another device answered at this address")
                 401 -> Result.Rejected("the sync key on the other device is different")
                 else -> {
                     val msg = try { JSONObject(c.errorStream.bufferedReader().readText()).optString("error") } catch (e: Exception) { "" }

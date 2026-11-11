@@ -220,6 +220,8 @@ pub struct Incoming {
 }
 
 pub struct Meta {
+    /// device id of the receiver; it rejects the push if it is not that device
+    pub to: String,
     pub batch: String,
     pub idx: u32,
     pub count: u32,
@@ -650,6 +652,32 @@ impl Core {
         let _ = self.app.emit("changed", ());
     }
 
+    /// Device for Ctrl+Shift+P: the last device pushed to (or picked in the app). If none is
+    /// recorded yet (e.g. pushes made before 1.3), use the device of the newest sent item,
+    /// else the device seen most recently.
+    pub fn quick_target(&self) -> Option<String> {
+        let peers = self.peers.lock().unwrap().clone();
+        let last = self.settings.lock().unwrap().last_target.clone();
+        if peers.contains_key(&last) {
+            return Some(last);
+        }
+        let by_history = {
+            let h = self.history.lock().unwrap();
+            h.iter().filter(|i| i.dir == "out").find_map(|i| peers.values().find(|p| p.name == i.peer).map(|p| p.id.clone()))
+        };
+        let pick = by_history.or_else(|| peers.values().max_by_key(|p| p.lan_seen.max(p.relay_seen)).map(|p| p.id.clone()))?;
+        self.set_last_target(&pick);
+        Some(pick)
+    }
+
+    pub fn set_last_target(&self, id: &str) {
+        let changed = {
+            let mut s = self.settings.lock().unwrap();
+            if s.last_target != id { s.last_target = id.to_string(); true } else { false }
+        };
+        if changed { self.save_settings(); }
+    }
+
     pub fn start_push(self: &Arc<Self>, target: String, paths: Vec<String>, text: String) -> Result<(), String> {
         if self.progress.lock().unwrap().active {
             return Err("A push is already running".into());
@@ -658,11 +686,7 @@ impl Core {
             return Err("Set a sync key first (Settings)".into());
         }
         let peer = self.peers.lock().unwrap().get(&target).cloned().ok_or("Choose a target device")?;
-        let changed_target = {
-            let mut s = self.settings.lock().unwrap();
-            if s.last_target != target { s.last_target = target.clone(); true } else { false }
-        };
-        if changed_target { self.save_settings(); }
+        self.set_last_target(&target);
         let mut items = vec![];
         if !text.trim().is_empty() {
             items.push(OutItem { kind: "text".into(), name: String::new(), path: None, size: text.len() as u64, text });
@@ -690,7 +714,7 @@ impl Core {
         let mut errors: Vec<String> = vec![];
         let mut base = 0u64;
         for (i, it) in items.iter().enumerate() {
-            let meta = Meta { batch: batch.clone(), idx: i as u32, count };
+            let meta = Meta { to: peer.id.clone(), batch: batch.clone(), idx: i as u32, count };
             let label = if it.kind == "text" { "text".to_string() } else { it.name.clone() };
             let mut via: Option<&str> = None;
             let mut err: Option<String> = None;

@@ -58,7 +58,7 @@ class Progress(
 )
 
 class Incoming(val fromId: String, val fromName: String, val batch: String, val idx: Int, val count: Int, val via: String)
-class Meta(val batch: String, val idx: Int, val count: Int)
+class Meta(val to: String, val batch: String, val idx: Int, val count: Int)
 
 /** One thing to push: text, or a file read from a content Uri (or a cached copy). */
 class OutItem(val kind: String, val name: String, val uri: Uri?, val text: String, val size: Long) {
@@ -452,7 +452,7 @@ object Core {
         val errors = ArrayList<String>()
         var base = 0L
         items.forEachIndexed { i, it ->
-            val meta = Meta(batch, i, items.size)
+            val meta = Meta(peer.id, batch, i, items.size)
             val label = if (it.kind == "text") "text" else it.name
             var via: String? = null
             var err: String? = null

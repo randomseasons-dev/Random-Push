@@ -79,6 +79,11 @@ fn handle(core: Arc<Core>, mut req: tiny_http::Request) {
             if k.token.is_empty() || get("x-dp-token") != k.token {
                 return respond(req, 401, json!({"ok": false, "error": "sync key mismatch"}));
             }
+            // a push meant for another device (it had this IP before): refuse, the sender tries elsewhere
+            let to = get("x-dp-to");
+            if !to.is_empty() && to != core.settings.lock().unwrap().device_id {
+                return respond(req, 409, json!({"ok": false, "error": "wrong device"}));
+            }
             let from_id = get("x-dp-from");
             let from_name = dec("x-dp-name");
             let port: u16 = get("x-dp-port").parse().unwrap_or(TCP_PORT);
@@ -144,6 +149,7 @@ pub fn send_item(core: &Arc<Core>, addr: &str, it: &OutItem, meta: &Meta, base: 
         .post(&format!("http://{addr}/push"))
         .set("X-DP-Token", &k.token)
         .set("X-DP-From", &s.device_id)
+        .set("X-DP-To", &meta.to)
         .set("X-DP-Name", &urlencoding::encode(&s.device_name))
         .set("X-DP-Plat", PLATFORM)
         .set("X-DP-Port", &core.http_port.load(Ordering::Relaxed).to_string())
@@ -163,6 +169,7 @@ pub fn send_item(core: &Arc<Core>, addr: &str, it: &OutItem, meta: &Meta, base: 
     };
     match res {
         Ok(_) => Ok(()),
+        Err(ureq::Error::Status(409, _)) => Err(SendErr::Unreachable("another device answered at this address".into())),
         Err(ureq::Error::Status(401, _)) => Err(SendErr::Rejected("the sync key on the other device is different".into())),
         Err(ureq::Error::Status(code, r)) => {
             let body: Value = r.into_json().unwrap_or(Value::Null);
