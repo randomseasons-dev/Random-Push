@@ -1,6 +1,6 @@
 [package]
 name = "random-push"
-version = "1.2.0"
+version = "1.3.0"
 description = "Random Push"
 authors = ["Dong Nguyen"]
 edition = "2021"
@@ -31,6 +31,7 @@ base64 = "0.22"
 hex = "0.4"
 urlencoding = "2"
 arboard = "3"
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
 dirs = "6"
 
 [profile.release]

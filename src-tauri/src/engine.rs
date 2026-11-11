@@ -136,6 +136,8 @@ pub struct Settings {
     pub sound: bool,
     pub relay_last_time: u64,
     pub relay_recent_ids: Vec<String>,
+    /// device of the last push (Ctrl+Shift+P quick push target)
+    pub last_target: String,
 }
 
 impl Default for Settings {
@@ -154,6 +156,7 @@ impl Default for Settings {
             sound: true,
             relay_last_time: 0,
             relay_recent_ids: vec![],
+            last_target: String::new(),
         }
     }
 }
@@ -420,7 +423,7 @@ impl Core {
         json!({
             "me": {"id": s.device_id, "name": s.device_name, "ips": local_ips(), "port": self.http_port.load(Ordering::Relaxed)},
             "settings": {"device_name": s.device_name, "key": s.key, "relay_enabled": s.relay_enabled, "relay_server": s.relay_server,
-                         "relay_max_mb": s.relay_max_mb, "auto_copy_text": s.auto_copy_text, "save_dir": s.save_dir, "autostart": autostart,
+                         "relay_max_mb": s.relay_max_mb, "auto_copy_text": s.auto_copy_text, "save_dir": s.save_dir, "autostart": autostart, "last_target": s.last_target,
                          "popup": s.popup, "sound": s.sound},
             "peers": peers.into_iter().map(|p| p.1).collect::<Vec<_>>(),
             "history": history,
@@ -655,6 +658,11 @@ impl Core {
             return Err("Set a sync key first (Settings)".into());
         }
         let peer = self.peers.lock().unwrap().get(&target).cloned().ok_or("Choose a target device")?;
+        let changed_target = {
+            let mut s = self.settings.lock().unwrap();
+            if s.last_target != target { s.last_target = target.clone(); true } else { false }
+        };
+        if changed_target { self.save_settings(); }
         let mut items = vec![];
         if !text.trim().is_empty() {
             items.push(OutItem { kind: "text".into(), name: String::new(), path: None, size: text.len() as u64, text });

@@ -43,7 +43,7 @@ npm install
 CARGO_BUILD_JOBS=1 npx tauri build
 ```
 
-Output: `src-tauri/target/release/bundle/nsis/Random Push_1.2.0_x64-setup.exe`. The installer asks for admin rights so it can add the Windows Firewall rule "Random Push" (inbound, for this exe only). The uninstaller removes that rule.
+Output: `src-tauri/target/release/bundle/nsis/Random Push_1.3.0_x64-setup.exe`. The installer asks for admin rights so it can add the Windows Firewall rule "Random Push" (inbound, for this exe only). The uninstaller removes that rule.
 
 Android (toolchain in `D:\AndroidDev`):
 
@@ -55,6 +55,10 @@ cd android && gradlew assembleRelease
 ```
 
 Output: `android/app/build/outputs/apk/release/app-release.apk`. It is signed with `D:\AndroidDev\keys\data-push.jks`, using `android/keystore.properties`. That file is git-ignored, and a copy is kept in `D:\AndroidDev\keys\data-push-keystore.properties`.
+
+## Quick push from anywhere (Windows)
+
+Click the taskbar or the desktop (so no app is in front), copy something, and press **Ctrl+Shift+P**. Random Push pushes the clipboard to the device you pushed to last: text as text, a picture or screenshot as a JPG. Inside other apps Ctrl+Shift+P is left alone, so their own shortcut still works.
 
 ## Phone tips
 

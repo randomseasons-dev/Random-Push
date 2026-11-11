@@ -1,4 +1,6 @@
 mod engine;
+#[cfg(windows)]
+mod hotkey;
 mod lan;
 mod popup;
 mod relay;
@@ -63,6 +65,11 @@ fn save_paste(app: AppHandle, data: String, name: String) -> Result<String, Stri
     use base64::Engine as _;
     let b64 = data.split_once(',').map(|(_, b)| b).unwrap_or(&data);
     let bytes = base64::engine::general_purpose::STANDARD.decode(b64.trim()).map_err(|e| e.to_string())?;
+    save_pasted_file(&app, &bytes, &name)
+}
+
+/// Writes a pasted picture (JPG bytes) to `<app cache>/pasted/<name>.jpg` and returns its path.
+pub(crate) fn save_pasted_file(app: &AppHandle, bytes: &[u8], name: &str) -> Result<String, String> {
     let dir = app.path().app_cache_dir().unwrap_or_else(|_| std::env::temp_dir().join("RandomPush")).join("pasted");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     // keep the folder small: drop pasted images older than 2 days
@@ -229,6 +236,8 @@ pub fn run() {
             app.manage(core.clone());
             lan::start(core.clone());
             relay::start(core.clone());
+            #[cfg(windows)]
+            hotkey::start(core.clone());
 
             // auto-run at sign-in: switched on once, the user can turn it off in Settings
             if !core.settings.lock().unwrap().autostart_init {
