@@ -111,6 +111,37 @@ object Core {
         applyWifiLock()
         Lan.start()
         Relay.start()
+        watchNetwork()
+    }
+
+    /** On every network change: tell the LAN peers our (new) address and reconnect the relay at once. */
+    private fun watchNetwork() {
+        val cm = app.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        var first = true
+        try {
+            cm.registerDefaultNetworkCallback(object : android.net.ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: android.net.Network) {
+                    if (first) { first = false; return } // the current network at start-up
+                    main.postDelayed({ Lan.announceNow = true; Relay.kick() }, 1500)
+                }
+                override fun onLost(network: android.net.Network) {
+                    Relay.kick()
+                }
+            })
+        } catch (_: Exception) {
+        }
+    }
+
+    /** First web link in a text ("www.x.com" gets https://), or null. */
+    fun firstUrl(text: String): String? {
+        val m = android.util.Patterns.WEB_URL.matcher(text)
+        while (m.find()) {
+            val u = m.group()
+            val low = u.lowercase()
+            if (low.startsWith("http://") || low.startsWith("https://")) return u
+            if (low.startsWith("www.")) return "https://$u"
+        }
+        return null
     }
 
     // ---------------- persistence ----------------

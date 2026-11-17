@@ -212,8 +212,14 @@ class MainActivity : Activity() {
         col.addView(keyCard)
 
         battCard = card().apply {
-            addView(tv("To receive while the screen is off, let Random Push run in the background."))
+            addView(tv("To receive instantly while the screen is off, let Random Push run in the background (battery: Unrestricted). Locking it in recent apps is not enough. On Samsung also add it to \"Never sleeping apps\"; on Xiaomi/Oppo/Vivo turn on Autostart."))
             addView(button("Allow background running") {
+                val pm = getSystemService(POWER_SERVICE) as PowerManager
+                if (pm.isIgnoringBatteryOptimizations(packageName)) {
+                    // already exempt but still restricted: the app's own settings page (Battery -> Unrestricted)
+                    try { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) } catch (e: Exception) { toast("Not available on this device") }
+                    return@button
+                }
                 try {
                     startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName")))
                 } catch (e: Exception) {
@@ -387,7 +393,8 @@ class MainActivity : Activity() {
         recvBtn.text = "📥 Received $n new — open"
         keyCard.visibility = if (Crypto.norm(Core.key).isEmpty()) View.VISIBLE else View.GONE
         val pm = getSystemService(POWER_SERVICE) as PowerManager
-        battCard.visibility = if (pm.isIgnoringBatteryOptimizations(packageName)) View.GONE else View.VISIBLE
+        val restricted = (getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager).isBackgroundRestricted
+        battCard.visibility = if (pm.isIgnoringBatteryOptimizations(packageName) && !restricted) View.GONE else View.VISIBLE
 
         // devices
         val peers = Core.sortedPeers()

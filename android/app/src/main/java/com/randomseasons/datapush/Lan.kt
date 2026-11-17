@@ -316,6 +316,8 @@ object Lan {
         return v
     }
 
+    @Volatile var announceNow = false
+
     private fun startUdp() {
         val sock = try {
             DatagramSocket(null).apply { reuseAddress = true; broadcast = true; bind(InetSocketAddress(Core.UDP_PORT)) }
@@ -331,7 +333,9 @@ object Lan {
                     }
                 } catch (_: Exception) {
                 }
-                Thread.sleep(4000)
+                // every 4 s, or right away after a network change
+                for (i in 0 until 20) { if (announceNow) break; Thread.sleep(200) }
+                announceNow = false
             }
         }
         thread(name = "dp-discover") {

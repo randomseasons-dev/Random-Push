@@ -101,6 +101,11 @@ class HistoryActivity : Activity() {
         try { startActivity(i) } catch (e: Exception) { Toast.makeText(this, "No app can open this file", Toast.LENGTH_SHORT).show() }
     }
 
+    private fun openUrl(url: String) {
+        try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+        catch (e: Exception) { Toast.makeText(this, "No app can open this link", Toast.LENGTH_SHORT).show() }
+    }
+
     private fun share(it: Item) {
         val u = Uri.parse(it.uri)
         val i = Intent(Intent.ACTION_SEND).setType(contentResolver.getType(u) ?: "*/*").putExtra(Intent.EXTRA_STREAM, u)
@@ -129,9 +134,15 @@ class HistoryActivity : Activity() {
             val via = when (it.via) { "LAN" -> " · local network"; "internet" -> " · internet relay"; else -> "" }
             card.addView(tv((if (it.dir == "in") "from " else "to ") + it.peer + " · " + df.format(Date(it.time)) +
                 (if (it.kind == "file") " · " + fmtSize(it.size) else "") + via, 12f).apply { alpha = 0.7f })
-            if (it.kind == "text") card.addView(tv(it.text).apply { setTextIsSelectable(true); setPadding(0, dp(6), 0, dp(4)) })
+            if (it.kind == "text") card.addView(tv(it.text).apply {
+                setTextIsSelectable(true); setPadding(0, dp(6), 0, dp(4))
+                android.text.util.Linkify.addLinks(this, android.text.util.Linkify.WEB_URLS)
+                linksClickable = true
+                movementMethod = android.text.method.LinkMovementMethod.getInstance()
+            })
             if (!it.ok) card.addView(tv("Failed: ${it.error}", 12f).apply { setTextColor(0xFFD64545.toInt()) })
             val acts = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            if (it.kind == "text") Core.firstUrl(it.text)?.let { url -> acts.addView(button("Open link") { openUrl(url) }) }
             if (it.kind == "text") acts.addView(button("Copy") { Core.copyToClipboard(it.text); Toast.makeText(this, "Copied", Toast.LENGTH_SHORT).show() })
             if (it.kind == "file" && it.dir == "in" && it.uri.isNotEmpty()) {
                 acts.addView(button("Open") { open(it) })

@@ -58,6 +58,13 @@ object Notif {
                 Intent(ctx, CopyReceiver::class.java).putExtra("id", textItemId),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             b.addAction(Notification.Action.Builder(null, "Copy", pi).build())
+            val text = synchronized(Core.history) { Core.history.firstOrNull { it.id == textItemId }?.text } ?: ""
+            Core.firstUrl(text)?.let { url ->
+                val open = PendingIntent.getActivity(ctx, 14,
+                    Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+                b.addAction(Notification.Action.Builder(null, "Open link", open).build())
+            }
         }
         try { nm(ctx).notify(ID_INCOMING, b.build()) } catch (_: SecurityException) {}
     }

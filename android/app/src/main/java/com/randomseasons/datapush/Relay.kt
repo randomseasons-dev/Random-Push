@@ -8,6 +8,15 @@ import kotlin.concurrent.thread
 
 /** Internet relay through an ntfy server — same envelope format as the Windows app (src-tauri/src/relay.rs). */
 object Relay {
+    @Volatile private var conn: HttpURLConnection? = null
+    @Volatile private var kicked = false
+
+    /** Network changed: drop the (possibly dead) subscription and reconnect right away. */
+    fun kick() {
+        kicked = true
+        thread { try { conn?.disconnect() } catch (_: Exception) {} }
+    }
+
     private fun server(): String {
         var v = Core.relayServer.trim().trimEnd('/')
         if (v.isEmpty()) v = "https://ntfy.sh"
@@ -55,8 +64,10 @@ object Relay {
             val since = if (Core.relayLastTime == 0L) "all" else Core.relayLastTime.toString()
             try {
                 val c = URL("${server()}/${k.topic}/json?since=$since").openConnection() as HttpURLConnection
+                conn = c
                 c.connectTimeout = 10_000
-                c.readTimeout = 100_000
+                // ntfy sends a keepalive every 45 s: no data for 65 s = dead connection, reconnect
+                c.readTimeout = 65_000
                 c.inputStream.bufferedReader().use { r ->
                     setStatus("connected (${server().substringAfter("://")})")
                     backoff = 5
@@ -72,8 +83,10 @@ object Relay {
                 setStatus("offline (${(e.message ?: e.javaClass.simpleName).take(60)})")
                 backoff = minOf(backoff * 2, 60)
             }
+            conn = null
+            if (kicked) { kicked = false; backoff = 5; Thread.sleep(500); continue }
             for (i in 0 until backoff) {
-                if (Core.relayGen.get() != gen) break
+                if (Core.relayGen.get() != gen || kicked) break
                 Thread.sleep(1000)
             }
         }
